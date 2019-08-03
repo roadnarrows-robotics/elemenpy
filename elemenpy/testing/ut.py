@@ -991,17 +991,17 @@ class UTSequencer:
         self.ssut.stats += self.ut.stats
         self.ssran.append(self.ssut.name)
 
-        print(f"  {self.color(str(self.ut.stats), 'darkgray')}")
+        print(f"rdk  {self.color(str(self.ut.stats), 'darkgray')}")
 
       self.ut = None
 
       self.stats += self.ssut.stats
-      print(f"  {self.color(str(self.ssut.stats), 'darkgray')}")
+      print(f"rdk  {self.color(str(self.ssut.stats), 'darkgray')}")
 
     self.ssut = None
 
     print('')
-    print(f"  {self.color(str(self.stats), 'darkgray')}")
+    print(f"rdk  {self.color(str(self.stats), 'darkgray')}")
 
   def get_avail_tests(self):
     """
