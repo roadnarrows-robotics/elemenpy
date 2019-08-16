@@ -691,6 +691,71 @@ class BaseEncoder:
     BaseEncoder.EncTbls.print_lookup_tbl(self.encoding, tid,
                               in_ascii=in_ascii, **print_kwargs)
 
+  def plen(self, s):
+    """
+    Determine the actual print length of a string taking non-spacing marks
+    into account. No printing is done.
+
+    Parameters:
+      s   String to search.
+
+    Return:
+      Length in spaces.
+    """
+    n = 0
+    for c in s:
+      if c not in BaseEncoder.EncTbls.get_nsm(self.encoding):
+        n += 1
+    return n
+
+  def pslice(self, s, start = 0, stop = -1):
+    """
+    Slice string taking non-spacing marks into account.
+
+    This is a smart string slice where non-spacing marks are taken into
+    account.
+
+    Parameters:
+      s       String to slice.
+      start   Starting print index where the slicing of the object starts.
+              Default is the start of the string.
+      stop    Stopping print index where the slice ends.
+              Default is the end of the string.
+
+    Return:
+      Returns 2-tuple (t, n) where t is the sliced version of s, and where
+      n is the actual print length.
+    """
+    if start < 0:
+      start = 0
+    if stop < 0:
+      stop = len(s)
+    if stop <= start:
+      return ('', 0)
+    m = len(s)
+    if start >= m:
+      return ('', 0)
+    # find real starting index
+    n = 0
+    i = 0
+    k = 0
+    while i < m and k < start:
+      if s[i] not in BaseEncoder.EncTbls.get_nsm(self.encoding):
+        k += 1
+        n += 1
+      i += 1
+    # find real stop index
+    j = i
+    while j < m and k < stop-1:
+      if s[j] not in BaseEncoder.EncTbls.get_nsm(self.encoding):
+        k += 1
+        n += 1
+      j += 1
+    if j < m:
+      if s[j] in BaseEncoder.EncTbls.get_nsm(self.encoding):
+        j += 1
+    return (s[i:j], n)
+
 # -----------------------------------------------------------------------------
 # Class UnicodeEncoder
 # -----------------------------------------------------------------------------

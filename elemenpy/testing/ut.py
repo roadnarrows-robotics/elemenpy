@@ -55,6 +55,7 @@ import argparse
 
 # minimize imports from elemenpy package since also candiate sut's
 from elemenpy.core.common import (enumfactory, indexget, termsize)
+from elemenpy.core.format import (unicode_encoder)
 from elemenpy.core.color import (TermColors)
 from elemenpy.core.args import (SmartFormatter)
 
@@ -938,18 +939,25 @@ class UTSequencer:
       try:
         self.check_prereqs(self.ssut)
       except Exception as e:
-        self.fatalexit(-1, 'while checking prerequisites', e)
+        self.fatalexit(-1, 'in check_prereqs()', e)
 
       # test all unit tests in a subsystem
       for self.ut in self.ssut:
-        self.ut.reset()
+        utname = self.ut.__class__.__name__
+
+        # reset unit test to initial state
+        try:
+          self.ut.reset()
+        except Exception as e:
+          self.fatalexit(-1, 'in {utname}.reset()', e)
+
         self.print_ut_hdr()
 
         # prepare unit test for testing
         try:
           self.ut.prep(self)
         except Exception as e:
-          self.fatalexit(-1, 'while prepping the unit test', e)
+          self.fatalexit(-1, 'in {utname}.prep()', e)
 
         # unit test number
         tnum = 0
@@ -960,7 +968,7 @@ class UTSequencer:
           try:
             what, expect = self.ut.begin(self, datum)
           except Exception as e:
-            self.fatalexit(tnum, 'at the beginning of', e)
+            self.fatalexit(tnum, 'in {utname}.begin()', e)
 
           self.mark_test_begin(what, expect)
           self.ut.stats.bump_expected(expect)
@@ -969,7 +977,7 @@ class UTSequencer:
           try:
             result, answer = self.ut.test(self, datum)
           except Exception as e:
-            self.fatalexit(tnum, 'while testing', e)
+            self.fatalexit(tnum, 'in {utname}.test()', e)
 
           self.mark_tested(result, answer)
           self.ut.stats.bump_result(result)
@@ -978,7 +986,7 @@ class UTSequencer:
           try:
             self.ut.end(self)
           except Exception as e:
-            self.fatalexit(tnum, 'while ending', e)
+            self.fatalexit(tnum, 'in {utname}.end()', e)
 
           tnum += 1
 
@@ -986,22 +994,23 @@ class UTSequencer:
         try:
           self.ut.finalize(self)
         except Exception as e:
-          self.fatalexit(-1, 'while finalizing the unit test', e)
+          self.fatalexit(-1, 'in {utname}.finalize()', e)
         
         self.ssut.stats += self.ut.stats
         self.ssran.append(self.ssut.name)
 
-        print(f"rdk  {self.color(str(self.ut.stats), 'darkgray')}")
+        self.print_stats(self.ut.name, self.ut.stats)
+        print('')
 
       self.ut = None
 
       self.stats += self.ssut.stats
-      print(f"rdk  {self.color(str(self.ssut.stats), 'darkgray')}")
+      self.print_stats(self.ssut.name, self.ssut.stats)
 
     self.ssut = None
 
     print('')
-    print(f"rdk  {self.color(str(self.stats), 'darkgray')}")
+    self.print_stats(self.name, self.stats)
 
   def get_avail_tests(self):
     """
@@ -1053,9 +1062,11 @@ class UTSequencer:
     if w < 0:
       w = 0
 
-    s = self.utwhat[:w]
+    #RDK s = self.utwhat[:w]
+    s,n = unicode_encoder.pslice(self.utwhat, stop=w)
 
-    sp = self.columns - len(pre) - len(s) - len(post)
+    #RDK sp = self.columns - len(pre) - len(s) - len(post)
+    sp = self.columns - len(pre) - n - len(post)
     if sp < 0:
       sp = 0
 
@@ -1084,8 +1095,10 @@ class UTSequencer:
     if w < 0:
       w = 0
     s = self.utwhat + ' ' + line
-    s = s[:w]
-    sp = self.columns - len(pre) - len(s) - len(post)
+    #RDK s = s[:w]
+    s,n = unicode_encoder.pslice(s, stop=w)
+    #RDK sp = self.columns - len(pre) - len(s) - len(post)
+    sp = self.columns - len(pre) - n - len(post)
     if sp < 0:
       sp = 0
     print(f"\r[{self.color.utstate(result)}] {s}{'':<{sp}}{post}")
@@ -1099,7 +1112,8 @@ class UTSequencer:
     if w < 0:
       w = 0
     for line in lines[1:]:
-      s = line[:w]
+      #RDK s = line[:w]
+      s,n = unicode_encoder.pslice(line, stop=w)
       print(f"{'':<{sp}}{s}")
 
   def print_top_hdr(self, testnames):
@@ -1111,7 +1125,11 @@ class UTSequencer:
     """
     testpath = self.breadcrumbs()
     tlist = ' '.join(testnames)
-    print(f"  {self.color(testpath, 'lightblue')}  tests: {tlist}")
+    suttests = f"UT.{self.name} test to run"
+    print()
+    print(f"{self.color(suttests, 'green')}: {tlist}")
+    print()
+    print(f"  {self.color(testpath, 'lightblue')}")
 
   def print_ssut_hdr(self):
     """ Print SSUT subheader. """
@@ -1123,6 +1141,15 @@ class UTSequencer:
     """ Print UT subheader. """
     testpath = self.breadcrumbs()
     print(f"  {self.color(testpath, 'lightblue')}")
+
+  def print_stats(self, name, stats):
+    if len(name) <= 16:
+      n = f"{name[:16]:<16}"
+    else:
+      n = name[:13] + '...'
+      n = f"{n:<16}"
+    print(f"  {self.color(n, 'darkgray')}"
+          f"{self.color(str(stats), 'darkgray')}")
 
   def fatalexit(self, tnum, doing, e):
     """
